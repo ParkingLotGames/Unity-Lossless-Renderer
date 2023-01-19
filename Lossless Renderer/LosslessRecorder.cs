@@ -4,10 +4,8 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
-#if UNITY_2019_OR_NEWER
 using System.IO.Compression;
 using System.Net;
-#endif
 
 public enum FfmpegInstallToUse
 {
