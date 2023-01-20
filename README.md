@@ -1,6 +1,6 @@
 # Unity Lossless Renderer
  
- ## An editor and runtime renderer that outputs frame captures and uses ffmpeg to join them in a video. It can also download and install ffmpeg globally or locally.
+ ### An editor and runtime renderer that outputs frame captures and uses ffmpeg to join them in a video. It can also download and install ffmpeg globally or locally.
 
 #### Only 2019.1+ versions are officially supported
 
