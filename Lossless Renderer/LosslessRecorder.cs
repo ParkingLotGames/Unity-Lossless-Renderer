@@ -27,10 +27,7 @@ public class EditorRecorder : EditorWindow
     int currentFrame = 0;
     float frameTime;
     float elapsed;
-#if UNITY_2019_OR_NEWER
-
     bool ffmpegInstalledByTool;
-#endif
     public string currentOutputPath;
     public string captureFilePath;
     Process ffmpegProcess;
@@ -47,12 +44,23 @@ public class EditorRecorder : EditorWindow
         if (File.Exists("Assets/LosslessRecorderSettings.asset"))
         {
             settings = AssetDatabase.LoadAssetAtPath<LosslessRecorderSettings>("Assets/LosslessRecorderSettings.asset");
-            settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
-            settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
+            RecheckInstalls();
         }
     }
+
+    private void RecheckInstalls()
+    {
+        settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
+        settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
+    }
+
     private void OnGUI()
     {
+        if (settings)
+            if (GUILayout.Button("Recheck Installs",GUILayout.Width(112)))
+            {
+                RecheckInstalls();
+            }
         settings = (LosslessRecorderSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(LosslessRecorderSettings), false);
         if (!settings)
         {
@@ -77,11 +85,8 @@ public class EditorRecorder : EditorWindow
                     //and no local
                     if (!settings.localFfmpegInstallationFound)
                     {
-#if UNITY_2019_OR_NEWER
-
                     if (ffmpegInstalledByTool)
                         EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-#endif
                         settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
                         settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
                         EditorGUILayout.BeginHorizontal();
@@ -101,11 +106,7 @@ public class EditorRecorder : EditorWindow
                                 EditorGUILayout.BeginHorizontal();
                                 if (GUILayout.Button("Play and Record"))
                                 {
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                    EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                     StartRecording();
                                 }
                                 if (GUILayout.Button("Start Recording"))
@@ -131,11 +132,7 @@ public class EditorRecorder : EditorWindow
                                     if (GUILayout.Button("Stop Playing"))
                                     {
                                         recordingState = RecordingState.Stopping;
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                        EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                         StopRecording();
                                     }
                                     EditorGUILayout.EndHorizontal();
@@ -161,11 +158,8 @@ public class EditorRecorder : EditorWindow
                     else
                     {
                         EditorGUILayout.HelpBox(@"A local ffmpeg installation was found at ""Project/ffmpeg"", consider removing it to save some disk space.", MessageType.Info);
-#if UNITY_2019_OR_NEWER
-
                     if (ffmpegInstalledByTool)
                         EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-#endif
                         settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
                         settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
                         EditorGUILayout.BeginHorizontal();
@@ -185,11 +179,7 @@ public class EditorRecorder : EditorWindow
                                 EditorGUILayout.BeginHorizontal();
                                 if (GUILayout.Button("Play and Record"))
                                 {
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                    EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                     StartRecording();
                                 }
                                 if (GUILayout.Button("Start Recording"))
@@ -215,11 +205,7 @@ public class EditorRecorder : EditorWindow
                                     if (GUILayout.Button("Stop Playing"))
                                     {
                                         recordingState = RecordingState.Stopping;
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                        EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                         StopRecording();
                                     }
                                     EditorGUILayout.EndHorizontal();
@@ -249,35 +235,27 @@ public class EditorRecorder : EditorWindow
                     if (!settings.localFfmpegInstallationFound)
                     {
                         EditorGUILayout.HelpBox("No ffmpeg entry found in PATH, please install ffmpeg and add it to PATH or check your Environment Variables and verify the specified path specified for ffmpeg in PATH is correct if you have already installed it.", MessageType.Error);
-#if UNITY_2019_OR_NEWER
                     if (GUILayout.Button("Download and install ffmpeg"))
                     {
                         LocalFfmpegInstallationManager.DownloadFfmpeg();
-#if UNITY_EDITOR_WIN
                         LocalFfmpegInstallationManager.InstallFfmpeg("C:/",true);
-#endif
                         ffmpegInstalledByTool = true;
                         settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
                     }
-#endif
                     }
                     //but we find a local one
                     else
                     {
                         EditorGUILayout.HelpBox("A local installation of ffmpeg was found, consider using only an install to save some disk space", MessageType.Info);
                         EditorGUILayout.HelpBox("No ffmpeg entry found in PATH, please install ffmpeg and add it to PATH or check your Environment Variables and verify the specified path specified for ffmpeg in PATH is correct if you have already installed it.", MessageType.Error);
-#if UNITY_2019_OR_NEWER
                     if (GUILayout.Button("Download and install ffmpeg"))
                     {
 
                         LocalFfmpegInstallationManager.DownloadFfmpeg();
-#if UNITY_EDITOR_WIN
                         LocalFfmpegInstallationManager.InstallFfmpeg("C:/",true);
-#endif
                         ffmpegInstalledByTool = true;
                         settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
                     }
-#endif
                     }
                 }
             }
@@ -290,11 +268,9 @@ public class EditorRecorder : EditorWindow
                     //and no global
                     if (!settings.globalFfmpegInstallationFound)
                     {
-#if UNITY_2019_OR_NEWER
 
                     if (ffmpegInstalledByTool)
                         EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-#endif
                         settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
                         settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
                         EditorGUILayout.BeginHorizontal();
@@ -314,11 +290,7 @@ public class EditorRecorder : EditorWindow
                                 EditorGUILayout.BeginHorizontal();
                                 if (GUILayout.Button("Play and Record"))
                                 {
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                    EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                     StartRecording();
                                 }
                                 if (GUILayout.Button("Start Recording"))
@@ -344,11 +316,7 @@ public class EditorRecorder : EditorWindow
                                     if (GUILayout.Button("Stop Playing"))
                                     {
                                         recordingState = RecordingState.Stopping;
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                        EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                         StopRecording();
                                     }
                                     EditorGUILayout.EndHorizontal();
@@ -373,12 +341,10 @@ public class EditorRecorder : EditorWindow
                     // but we also find a global one
                     else
                     {
-#if UNITY_2019_OR_NEWER
 
-                    if (ffmpegInstalledByTool)
-                        EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-#endif
-                        EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
+                        EditorGUILayout.HelpBox("A global ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
+                        if (ffmpegInstalledByTool)
+                            EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
                         settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
                         settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
                         EditorGUILayout.BeginHorizontal();
@@ -398,11 +364,7 @@ public class EditorRecorder : EditorWindow
                                 EditorGUILayout.BeginHorizontal();
                                 if (GUILayout.Button("Play and Record"))
                                 {
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                    EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                     StartRecording();
                                 }
                                 if (GUILayout.Button("Start Recording"))
@@ -428,11 +390,7 @@ public class EditorRecorder : EditorWindow
                                     if (GUILayout.Button("Stop Playing"))
                                     {
                                         recordingState = RecordingState.Stopping;
-#if UNITY_2019_1_OR_NEWER
                                 EditorApplication.EnterPlaymode();
-#else
-                                        EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
                                         StopRecording();
                                     }
                                     EditorGUILayout.EndHorizontal();
@@ -462,7 +420,6 @@ public class EditorRecorder : EditorWindow
                     if (!settings.globalFfmpegInstallationFound)
                     {
                         EditorGUILayout.HelpBox("No local ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
-#if UNITY_2019_OR_NEWER
                         if (GUILayout.Button("Download and install ffmpeg"))
                         {
                             LocalFfmpegInstallationManager.DownloadFfmpeg();
@@ -470,14 +427,12 @@ public class EditorRecorder : EditorWindow
                             ffmpegInstalledByTool = true;
                             settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
                         }
-#endif
                     }
                     //but we find a local one
                     else
                     {
                         EditorGUILayout.HelpBox("A global ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
                         EditorGUILayout.HelpBox("No local ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
-#if UNITY_2019_OR_NEWER
                         if (GUILayout.Button("Download and install ffmpeg"))
                         {
                             LocalFfmpegInstallationManager.DownloadFfmpeg();
@@ -485,7 +440,6 @@ public class EditorRecorder : EditorWindow
                             ffmpegInstalledByTool = true;
                             settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
                         }
-#endif
                     }
                 }
             }
@@ -590,7 +544,6 @@ public class LocalFfmpegInstallationManager : EditorWindow
             Debug.Log(IsLocalFfmpegInstalled());
         }
     }
-#if UNITY_2019_1_OR_NEWER
     public static void DownloadFfmpeg()
     {
         using (var client = new WebClient())
@@ -619,6 +572,4 @@ public class LocalFfmpegInstallationManager : EditorWindow
             Environment.SetEnvironmentVariable("PATH", environmentPath, EnvironmentVariableTarget.User);
         }
     }
-#endif
-
 }
