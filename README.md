@@ -1,6 +1,10 @@
 # Unity Lossless Renderer
 
-#### Only 2019.1+ Unity versions are officially supported
+![Unity Version](https://img.shields.io/badge/Unity-2019.1%2B-blue?style=plastic) ![License](https://img.shields.io/github/license/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Size](https://img.shields.io/github/repo-size/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![package.json version (branch)](https://img.shields.io/github/package-json/v/ParkingLotGames/Unity-Lossless-Renderer/main?style=plastic) ![Last commit](https://img.shields.io/github/last-commit/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
+
+![package.json dynamic](https://img.shields.io/github/package-json/keywords/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
+
+![Issues](https://img.shields.io/github/issues-raw/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Pull requests](https://img.shields.io/github/issues-pr-raw/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
 ### An editor and runtime renderer that outputs frame captures and uses ffmpeg to join them in a video. It can also download and install ffmpeg globally or locally.
 
