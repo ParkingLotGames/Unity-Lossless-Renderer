@@ -1,8 +1,8 @@
 # Unity Lossless Renderer
 
-![Unity Supported Version](https://img.shields.io/badge/Unity-2018.2%2B-blue?style=plastic) ![Unity Minimum Version](https://img.shields.io/badge/Unity-Min5.6%2B-yellowgreen?style=plastic) ![License](https://img.shields.io/github/license/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Size](https://img.shields.io/github/repo-size/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![package.json version (branch)](https://img.shields.io/github/package-json/v/ParkingLotGames/Unity-Lossless-Renderer/main?style=plastic) ![Last commit](https://img.shields.io/github/last-commit/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
+![Unity Supported Version](https://img.shields.io/badge/Unity-2018.2%2B-blue?style=plastic) ![Unity Minimum Version](https://img.shields.io/badge/Unity-Min%205.6%2B-yellowgreen?style=plastic) ![License](https://img.shields.io/github/license/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Size](https://img.shields.io/github/repo-size/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![package.json version (branch)](https://img.shields.io/github/package-json/v/ParkingLotGames/Unity-Lossless-Renderer/main?style=plastic) ![Last commit](https://img.shields.io/github/last-commit/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
-![package.json dynamic](https://img.shields.io/github/package-json/keywords/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
+![Unity Version Limitation](https://img.shields.io/badge/Unity%202018.2‑3‑4-Check%20limitations-red?style=plastic) ![package.json dynamic](https://img.shields.io/github/package-json/keywords/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
 ![Issues](https://img.shields.io/github/issues-raw/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Pull requests](https://img.shields.io/github/issues-pr-raw/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
@@ -10,7 +10,9 @@
 
 Local path for ffmpeg is Project/localffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe
 
-For prior versions, download the [2018_OR_LOWER](https://github.com/ParkingLotGames/Unity-Lossless-Renderer/tree/2018_OR_LOWER) branch but be aware that those versions are not able to download ffmpeg if it's not installed.
+# Limitations
+Unity 2018.2-2018.4 versions need to add [this](https://gist.github.com/ParkingLotGames/0f8b4bdfa298266cba093c69241e9b43) as a [msc(.2) or csc.rsp(.3+) file](https://forum.unity.com/threads/c-compression-zip-missing.577492/#post-3849472) to your Assets folder in order to be able to unzip the downloaded ffmpeg file.
+Download support is not available on 2018.1 or lower versions and no testing was made on versions prior to 5.6.0f3
 
 # //TODO:
 #### Add Linux support.
