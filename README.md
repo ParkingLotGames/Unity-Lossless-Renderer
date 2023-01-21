@@ -1,6 +1,6 @@
 # Unity Lossless Renderer
 
-![Unity Supported Version](https://img.shields.io/badge/Unity-2018.2%2B-blue?style=plastic) [Unity Minimum Version](https://img.shields.io/badge/MinUnity-5.6%2B-yellowgreen?style=plastic) ![License](https://img.shields.io/github/license/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Size](https://img.shields.io/github/repo-size/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![package.json version (branch)](https://img.shields.io/github/package-json/v/ParkingLotGames/Unity-Lossless-Renderer/main?style=plastic) ![Last commit](https://img.shields.io/github/last-commit/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
+![Unity Supported Version](https://img.shields.io/badge/Unity-2018.2%2B-blue?style=plastic) ![Unity Minimum Version](https://img.shields.io/badge/Unity-Min5.6%2B-yellowgreen?style=plastic) ![License](https://img.shields.io/github/license/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![Size](https://img.shields.io/github/repo-size/ParkingLotGames/Unity-Lossless-Renderer?style=plastic) ![package.json version (branch)](https://img.shields.io/github/package-json/v/ParkingLotGames/Unity-Lossless-Renderer/main?style=plastic) ![Last commit](https://img.shields.io/github/last-commit/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
 ![package.json dynamic](https://img.shields.io/github/package-json/keywords/ParkingLotGames/Unity-Lossless-Renderer?style=plastic)
 
