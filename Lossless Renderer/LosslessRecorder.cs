@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 using System.IO.Compression;
 using System.Net;
+using Debug = UnityEngine.Debug;
 
 public enum FfmpegInstallToUse
 {
@@ -21,25 +21,36 @@ public enum RecordingState
 
 public class EditorRecorder : EditorWindow
 {
+    #region Variables
+    #region Private Variables
     LosslessRecorderSettings settings;
     RecordingState recordingState;
 
     int currentFrame = 0;
     float frameTime;
     float elapsed;
+#if UNITY_2018_2_OR_NEWER
     bool ffmpegInstalledByTool;
+#endif
+    Process ffmpegProcess;
+    #endregion
+
+    #region Public Variables
     public string currentOutputPath;
     public string captureFilePath;
-    Process ffmpegProcess;
+    #endregion
+    #endregion
 
+    #region Unity Callbacks
     [MenuItem("Tools/Lossless Recorder")]
-    private static void ShowWindow()
+    static void ShowWindow()
     {
         var window = GetWindow<EditorRecorder>();
         window.titleContent = new GUIContent("Lossless Recorder");
         window.Show();
     }
-    private void OnEnable()
+
+    void OnEnable()
     {
         if (File.Exists("Assets/LosslessRecorderSettings.asset"))
         {
@@ -48,28 +59,20 @@ public class EditorRecorder : EditorWindow
         }
     }
 
-    private void RecheckInstalls()
-    {
-        settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
-        settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
-    }
-
-    private void OnGUI()
+    void OnGUI()
     {
         if (settings)
-            if (GUILayout.Button("Recheck Installs",GUILayout.Width(112)))
+            if (GUILayout.Button("Recheck Installs", GUILayout.Width(112)))
             {
                 RecheckInstalls();
             }
         settings = (LosslessRecorderSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(LosslessRecorderSettings), false);
         if (!settings)
         {
-
-
             EditorGUILayout.HelpBox("No Settings asset found. Please select or create one.", MessageType.Warning);
             if (GUILayout.Button("Create Asset"))
             {
-                CreateAsset();
+                CreateSettingsAsset();
             }
             return;
         }
@@ -81,372 +84,234 @@ public class EditorRecorder : EditorWindow
             {
                 //and we find an install
                 if (settings.globalFfmpegInstallationFound)
-                {
-                    //and no local
-                    if (!settings.localFfmpegInstallationFound)
-                    {
-                    if (ffmpegInstalledByTool)
-                        EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-                        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
-                        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
-                        EditorGUILayout.BeginHorizontal();
-                        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
-                        if (GUILayout.Button("...", GUILayout.Width(30)))
-                        {
-                            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
-                        }
-                        EditorGUILayout.EndHorizontal();
-                        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
-                        frameTime = (float)1 / settings.frameRate;
-
-                        // Show the start/stop recording controls
-                        switch (recordingState)
-                        {
-                            case RecordingState.Stopped:
-                                EditorGUILayout.BeginHorizontal();
-                                if (GUILayout.Button("Play and Record"))
-                                {
-                                EditorApplication.EnterPlaymode();
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Start Recording"))
-                                {
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Splice Image Sequence"))
-                                {
-                                    SpliceRecording("ffmpeg");
-                                }
-                                EditorGUILayout.EndHorizontal();
-
-                                break;
-                            case RecordingState.Recording:
-                                if (Application.isPlaying)
-                                {
-                                    EditorGUILayout.BeginHorizontal();
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                    if (GUILayout.Button("Stop Playing"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                EditorApplication.EnterPlaymode();
-                                        StopRecording();
-                                    }
-                                    EditorGUILayout.EndHorizontal();
-                                }
-                                else
-                                {
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                }
-
-                                break;
-                            case RecordingState.Stopping:
-                                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
-                                if (GUILayout.Button("Stopping...")) { }
-                                EditorGUI.EndDisabledGroup();
-                                break;
-                        }
-                    }
-                    // but we also find a local one
-                    else
-                    {
-                        EditorGUILayout.HelpBox(@"A local ffmpeg installation was found at ""Project/ffmpeg"", consider removing it to save some disk space.", MessageType.Info);
-                    if (ffmpegInstalledByTool)
-                        EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-                        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
-                        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
-                        EditorGUILayout.BeginHorizontal();
-                        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
-                        if (GUILayout.Button("...", GUILayout.Width(30)))
-                        {
-                            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
-                        }
-                        EditorGUILayout.EndHorizontal();
-                        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
-                        frameTime = (float)1 / settings.frameRate;
-
-                        // Show the start/stop recording controls
-                        switch (recordingState)
-                        {
-                            case RecordingState.Stopped:
-                                EditorGUILayout.BeginHorizontal();
-                                if (GUILayout.Button("Play and Record"))
-                                {
-                                EditorApplication.EnterPlaymode();
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Start Recording"))
-                                {
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Splice Image Sequence"))
-                                {
-                                    SpliceRecording("ffmpeg");
-                                }
-                                EditorGUILayout.EndHorizontal();
-
-                                break;
-                            case RecordingState.Recording:
-                                if (Application.isPlaying)
-                                {
-                                    EditorGUILayout.BeginHorizontal();
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                    if (GUILayout.Button("Stop Playing"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                EditorApplication.EnterPlaymode();
-                                        StopRecording();
-                                    }
-                                    EditorGUILayout.EndHorizontal();
-                                }
-                                else
-                                {
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                }
-
-                                break;
-                            case RecordingState.Stopping:
-                                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
-                                if (GUILayout.Button("Stopping...")) { }
-                                EditorGUI.EndDisabledGroup();
-                                break;
-                        }
-                    }
-                }
+                    ShowRegularUI(settings.ffmpegInstallToUse);
                 //and we don't find a global install
                 else
-                {
-                    //nor a local one
-                    if (!settings.localFfmpegInstallationFound)
-                    {
-                        EditorGUILayout.HelpBox("No ffmpeg entry found in PATH, please install ffmpeg and add it to PATH or check your Environment Variables and verify the specified path specified for ffmpeg in PATH is correct if you have already installed it.", MessageType.Error);
-                    if (GUILayout.Button("Download and install ffmpeg"))
-                    {
-                        LocalFfmpegInstallationManager.DownloadFfmpeg();
-                        LocalFfmpegInstallationManager.InstallFfmpeg("C:/",true);
-                        ffmpegInstalledByTool = true;
-                        settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
-                    }
-                    }
-                    //but we find a local one
-                    else
-                    {
-                        EditorGUILayout.HelpBox("A local installation of ffmpeg was found, consider using only an install to save some disk space", MessageType.Info);
-                        EditorGUILayout.HelpBox("No ffmpeg entry found in PATH, please install ffmpeg and add it to PATH or check your Environment Variables and verify the specified path specified for ffmpeg in PATH is correct if you have already installed it.", MessageType.Error);
-                    if (GUILayout.Button("Download and install ffmpeg"))
-                    {
-
-                        LocalFfmpegInstallationManager.DownloadFfmpeg();
-                        LocalFfmpegInstallationManager.InstallFfmpeg("C:/",true);
-                        ffmpegInstalledByTool = true;
-                        settings.globalFfmpegInstallationFound = LocalFfmpegInstallationManager.IsGlobalFfmpegInstalled();
-                    }
-                    }
-                }
+                    ShowInstallNotFoundArea(settings.ffmpegInstallToUse);
             }
             // if we're using local
             else
             {
                 //and we find an install
                 if (settings.localFfmpegInstallationFound)
-                {
-                    //and no global
-                    if (!settings.globalFfmpegInstallationFound)
-                    {
-
-                    if (ffmpegInstalledByTool)
-                        EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-                        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
-                        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
-                        EditorGUILayout.BeginHorizontal();
-                        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
-                        if (GUILayout.Button("...", GUILayout.Width(30)))
-                        {
-                            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
-                        }
-                        EditorGUILayout.EndHorizontal();
-                        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
-                        frameTime = (float)1 / settings.frameRate;
-
-                        // Show the start/stop recording controls
-                        switch (recordingState)
-                        {
-                            case RecordingState.Stopped:
-                                EditorGUILayout.BeginHorizontal();
-                                if (GUILayout.Button("Play and Record"))
-                                {
-                                EditorApplication.EnterPlaymode();
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Start Recording"))
-                                {
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Splice Image Sequence"))
-                                {
-                                    SpliceRecording(@"localffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe");
-                                }
-                                EditorGUILayout.EndHorizontal();
-
-                                break;
-                            case RecordingState.Recording:
-                                if (Application.isPlaying)
-                                {
-                                    EditorGUILayout.BeginHorizontal();
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                    if (GUILayout.Button("Stop Playing"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                EditorApplication.EnterPlaymode();
-                                        StopRecording();
-                                    }
-                                    EditorGUILayout.EndHorizontal();
-                                }
-                                else
-                                {
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                }
-
-                                break;
-                            case RecordingState.Stopping:
-                                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
-                                if (GUILayout.Button("Stopping...")) { }
-                                EditorGUI.EndDisabledGroup();
-                                break;
-                        }
-                    }
-                    // but we also find a global one
-                    else
-                    {
-
-                        EditorGUILayout.HelpBox("A global ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
-                        if (ffmpegInstalledByTool)
-                            EditorGUILayout.HelpBox(@"Local ffmpeg installation created at ""Project/ffmpeg/"".", MessageType.Info);
-                        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
-                        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
-                        EditorGUILayout.BeginHorizontal();
-                        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
-                        if (GUILayout.Button("...", GUILayout.Width(30)))
-                        {
-                            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
-                        }
-                        EditorGUILayout.EndHorizontal();
-                        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
-                        frameTime = (float)1 / settings.frameRate;
-
-                        // Show the start/stop recording controls
-                        switch (recordingState)
-                        {
-                            case RecordingState.Stopped:
-                                EditorGUILayout.BeginHorizontal();
-                                if (GUILayout.Button("Play and Record"))
-                                {
-                                EditorApplication.EnterPlaymode();
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Start Recording"))
-                                {
-                                    StartRecording();
-                                }
-                                if (GUILayout.Button("Splice Image Sequence"))
-                                {
-                                    SpliceRecording(@"localffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe");
-                                }
-                                EditorGUILayout.EndHorizontal();
-
-                                break;
-                            case RecordingState.Recording:
-                                if (Application.isPlaying)
-                                {
-                                    EditorGUILayout.BeginHorizontal();
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                    if (GUILayout.Button("Stop Playing"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                EditorApplication.EnterPlaymode();
-                                        StopRecording();
-                                    }
-                                    EditorGUILayout.EndHorizontal();
-                                }
-                                else
-                                {
-                                    if (GUILayout.Button("Stop Recording"))
-                                    {
-                                        recordingState = RecordingState.Stopping;
-                                        StopRecording();
-                                    }
-                                }
-
-                                break;
-                            case RecordingState.Stopping:
-                                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
-                                if (GUILayout.Button("Stopping...")) { }
-                                EditorGUI.EndDisabledGroup();
-                                break;
-                        }
-                    }
-                }
+                    ShowRegularUI(settings.ffmpegInstallToUse);
                 //and we don't find a local install
                 else
-                {
-                    //nor a global one
-                    if (!settings.globalFfmpegInstallationFound)
-                    {
-                        EditorGUILayout.HelpBox("No local ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
-                        if (GUILayout.Button("Download and install ffmpeg"))
-                        {
-                            LocalFfmpegInstallationManager.DownloadFfmpeg();
-                            LocalFfmpegInstallationManager.InstallFfmpeg("ffmpeg",false);
-                            ffmpegInstalledByTool = true;
-                            settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
-                        }
-                    }
-                    //but we find a local one
-                    else
-                    {
-                        EditorGUILayout.HelpBox("A global ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
-                        EditorGUILayout.HelpBox("No local ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
-                        if (GUILayout.Button("Download and install ffmpeg"))
-                        {
-                            LocalFfmpegInstallationManager.DownloadFfmpeg();
-                            LocalFfmpegInstallationManager.InstallFfmpeg("ffmpeg",false);
-                            ffmpegInstalledByTool = true;
-                            settings.localFfmpegInstallationFound = LocalFfmpegInstallationManager.IsLocalFfmpegInstalled();
-                        }
-                    }
-                }
+                    ShowInstallNotFoundArea(settings.ffmpegInstallToUse);
             }
         }
     }
 
-    private void StartRecording()
+    void Update()
+    {
+        if (recordingState == RecordingState.Recording)
+        {
+            elapsed += Time.deltaTime;
+            if (elapsed >= frameTime)
+            {
+#if UNITY_2017_4_OR_NEWER
+                ScreenCapture.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#else
+                Application.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#endif
+                currentFrame += 1;
+                elapsed = 0;
+            }
+        }
+    }
+    #endregion
+
+    #region Private Methods
+    void CreateSettingsAsset()
+    {
+        settings = CreateInstance<LosslessRecorderSettings>();
+        AssetDatabase.CreateAsset(settings, "Assets/LosslessRecorderSettings.asset");
+        AssetDatabase.SaveAssets();
+    }
+
+    void RecheckInstalls()
+    {
+        settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
+        settings.localFfmpegInstallationFound = FfmpegInstallationManager.IsLocalFfmpegInstalled();
+    }
+
+    void ShowSettingsArea()
+    {
+        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
+        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
+        EditorGUILayout.BeginHorizontal();
+        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
+        if (GUILayout.Button("...", GUILayout.Width(30)))
+        {
+            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
+        }
+        EditorGUILayout.EndHorizontal();
+        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
+        frameTime = (float)1 / settings.frameRate;
+    }
+
+    void ShowStartStopRecordingControls()
+    {
+        switch (recordingState)
+        {
+            case RecordingState.Stopped:
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Play and Record"))
+                {
+                    TogglePlayMode();
+                    StartRecording();
+                }
+                if (GUILayout.Button("Start Recording"))
+                {
+                    StartRecording();
+                }
+                if (GUILayout.Button("Splice Image Sequence"))
+                {
+                    SpliceRecording(@"localffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe");
+                }
+                EditorGUILayout.EndHorizontal();
+
+                break;
+            case RecordingState.Recording:
+                if (Application.isPlaying)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    if (GUILayout.Button("Stop Recording"))
+                    {
+                        recordingState = RecordingState.Stopping;
+                        StopRecording();
+                    }
+                    if (GUILayout.Button("Stop Playing"))
+                    {
+                        recordingState = RecordingState.Stopping;
+                        TogglePlayMode();
+                        StopRecording();
+                    }
+                    EditorGUILayout.EndHorizontal();
+                }
+                else
+                {
+                    if (GUILayout.Button("Stop Recording"))
+                    {
+                        recordingState = RecordingState.Stopping;
+                        StopRecording();
+                    }
+                }
+
+                break;
+            case RecordingState.Stopping:
+                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
+                if (GUILayout.Button("Stopping...")) { }
+                EditorGUI.EndDisabledGroup();
+                break;
+        }
+    }
+
+    private static void TogglePlayMode()
+    {
+#if UNITY_2019_1_OR_NEWER
+                                EditorApplication.EnterPlaymode();
+#else
+        EditorApplication.ExecuteMenuItem("Edit/Play");
+#endif
+    }
+
+    void ShowRegularUI(FfmpegInstallToUse selectedInstall)
+    {
+        if (selectedInstall == FfmpegInstallToUse.global)
+        {
+            if (settings.localFfmpegInstallationFound)
+                ShowInstallFoundInfoBox(selectedInstall);
+        }
+        else
+        {
+            if (settings.globalFfmpegInstallationFound)
+                ShowInstallFoundInfoBox(selectedInstall);
+        }
+#if UNITY_2018_2_OR_NEWER
+        if (ffmpegInstalledByTool)
+            ShowInstallFirstTimeInfoBox(settings.ffmpegInstallToUse);
+#endif
+        ShowSettingsArea();
+        ShowStartStopRecordingControls();
+    }
+
+    void ShowInstallFirstTimeInfoBox(FfmpegInstallToUse selectedInstall)
+    {
+        string installTypeString;
+        if (selectedInstall == FfmpegInstallToUse.global)
+            installTypeString = "global";
+        else
+            installTypeString = "local";
+        EditorGUILayout.HelpBox(installTypeString + " ffmpeg installation created at 'Project/ffmpeg/'.", MessageType.Info);
+    }
+
+    void ShowInstallFoundInfoBox(FfmpegInstallToUse selectedInstall)
+    {
+        string oppositeKeyword;
+        if (selectedInstall == FfmpegInstallToUse.global)
+            oppositeKeyword = "local";
+        else
+            oppositeKeyword = "global";
+        EditorGUILayout.HelpBox("A " + oppositeKeyword + " ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
+    }
+
+    void ShowInstallMissingMessage(FfmpegInstallToUse selectedInstall)
+    {
+        string installTypeString;
+        if (selectedInstall == FfmpegInstallToUse.global)
+            installTypeString = "global";
+        else
+            installTypeString = "local";
+        EditorGUILayout.HelpBox("No " + installTypeString + " ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
+    }
+
+    void ShowInstallNotFoundArea(FfmpegInstallToUse selectedInstall)
+    {
+        //show if we find an opposite installation
+        if (selectedInstall == FfmpegInstallToUse.global)
+        {
+            if (settings.localFfmpegInstallationFound)
+                ShowInstallFoundInfoBox(selectedInstall);
+        }
+        else
+        {
+            if (settings.globalFfmpegInstallationFound)
+                ShowInstallFoundInfoBox(selectedInstall);
+        }
+        ShowInstallMissingMessage(selectedInstall);
+#if UNITY_2018_2_OR_NEWER
+        ShowDownloadFfmpegButton(selectedInstall);
+#endif
+    }
+
+#if UNITY_2018_2_OR_NEWER
+    void ShowDownloadFfmpegButton(FfmpegInstallToUse selectedInstall)
+    {
+        if (GUILayout.Button("Download and install ffmpeg"))
+        {
+#if UNITY_EDITOR_WIN
+            FfmpegInstallationManager.DownloadFfmpeg();
+            if (selectedInstall == FfmpegInstallToUse.global)
+            {
+                FfmpegInstallationManager.InstallFfmpeg("C:/", false);
+                settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
+            }
+            else
+            {
+                FfmpegInstallationManager.InstallFfmpeg("localffmpeg", false);
+                settings.localFfmpegInstallationFound = FfmpegInstallationManager.IsLocalFfmpegInstalled();
+            }
+#elif UNITY_EDITOR_LINUX || UNITY_EDITOR_MACOS
+            FfmpegInstallationManager.OpenTerminalWithCommand(FfmpegInstallationManager.CheckPackageManager());
+            settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
+#endif
+            ffmpegInstalledByTool = true;
+        }
+    }
+#endif
+
+    void StartRecording()
     {
         currentOutputPath = Path.Combine(settings.outputPath, DateTime.Now.ToString("MM-dd-yyyy@HH-mm-ss"));
         if (!Directory.Exists(currentOutputPath))
@@ -461,7 +326,7 @@ public class EditorRecorder : EditorWindow
         // Start the ffmpeg process
         ffmpegProcess = new Process();
         ffmpegProcess.StartInfo.FileName = path;
-        ffmpegProcess.StartInfo.Arguments = "-y -r " + settings.frameRate + " -i " + Path.Combine(captureFilePath + "%d.png") + " -vcodec libx264 -crf 0 " + Path.Combine(currentOutputPath, settings.outputVideoName);
+        ffmpegProcess.StartInfo.Arguments = "-y -r " + settings.frameRate + " -i " + captureFilePath + "%d.png" + " -vcodec libx264 -crf 0 " + Path.Combine(currentOutputPath, settings.outputVideoName);
         ffmpegProcess.Start();
         ffmpegProcess.WaitForExit();
     }
@@ -477,39 +342,35 @@ public class EditorRecorder : EditorWindow
         recordingState = RecordingState.Stopped;
         currentFrame = 0;
     }
-
-    void CreateAsset()
-    {
-        settings = CreateInstance<LosslessRecorderSettings>();
-        AssetDatabase.CreateAsset(settings, "Assets/LosslessRecorderSettings.asset");
-        AssetDatabase.SaveAssets();
-    }
-
-    private void Update()
-    {
-        if (recordingState == RecordingState.Recording)
-        {
-            elapsed += Time.deltaTime;
-            if (elapsed >= frameTime)
-            {
-                ScreenCapture.CaptureScreenshot(captureFilePath + currentFrame + ".png");
-                currentFrame += 1;
-                elapsed = 0;
-            }
-        }
-    }
+    #endregion
 }
 
-
-public class LocalFfmpegInstallationManager : EditorWindow
+public class FfmpegInstallationManager : EditorWindow
 {
+    #region Unity Callbacks
     [MenuItem("Tools/FFMPEG Install Check")]
     public static void ShowWindow()
     {
-        var window = GetWindow<LocalFfmpegInstallationManager>();
+        var window = GetWindow<FfmpegInstallationManager>();
         window.titleContent = new GUIContent("FFMPEG Install Check");
     }
-#region Static Bools
+
+    void OnGUI()
+    {
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Check global install"))
+        {
+            Debug.Log(IsGlobalFfmpegInstalled());
+        }
+        if (GUILayout.Button("Check local install"))
+        {
+            Debug.Log(IsLocalFfmpegInstalled());
+        }
+        GUILayout.EndHorizontal();
+    }
+    #endregion
+
+    #region Static Methods
     public static bool IsGlobalFfmpegInstalled()
     {
         var process = new Process
@@ -531,28 +392,70 @@ public class LocalFfmpegInstallationManager : EditorWindow
     {
         return File.Exists("localffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe");
     }
-#endregion
 
-    private void OnGUI()
+#if UNITY_EDITOR_LINUX || UNITY_EDITOR_MACOS
+    public static int CheckPackageManager()
     {
-        if (GUILayout.Button("Check if global FFMPEG is installed"))
-        {
-            Debug.Log(IsGlobalFfmpegInstalled());
-        }
-        if (GUILayout.Button("Check if local FFMPEG is installed"))
-        {
-            Debug.Log(IsLocalFfmpegInstalled());
-        }
+        if (File.Exists("/usr/bin/pacman")) return 0;
+        else if (File.Exists("/usr/bin/dnf")) return 1;
+        else if (File.Exists("/usr/bin/apt")) return 2;
+        else if (File.Exists("/usr/bin/portage")) return 3;
+        else if (File.Exists("/usr/local/bin/brew")) return 4;
+        else return -1;
     }
+    public static void OpenTerminalWithCommand(int packageManager)
+    {
+        string command = "";
+        if (packageManager == 0) command = "pacman -S ffmpeg";
+        else if (packageManager == 1) command = "dnf install ffmpeg";
+        else if (packageManager == 2) command = "apt install ffmpeg";
+        else if (packageManager == 3) command = "emerge ffmpeg";
+        else if (packageManager == 4) command = "brew install ffmpeg";
+        else
+        {
+            Debug.Log("No supported package manager found.");
+            return;
+        }
+        var terminalProcess = new Process
+        {
+#if UNITY_EDITOR_LINUX
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "x-terminal-emulator",
+                Arguments = "-a Terminal",
+                RedirectStandardInput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+#elif UNITY_EDITOR_MACOS
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "open",
+                Arguments = "-a Terminal",
+                RedirectStandardInput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+#endif
+        };
+        terminalProcess.Start();
+        terminalProcess.StandardInput.WriteLine(command);
+        terminalProcess.StandardInput.Flush();
+        terminalProcess.StandardInput.Close();
+    } 
+#endif
+
+
+#if UNITY_2018_2_OR_NEWER
     public static void DownloadFfmpeg()
     {
         using (var client = new WebClient())
         {
             client.DownloadFile("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip", "ffmpeg-latest.zip");
         }
-        if (!Directory.Exists("ffmpeg"))
+        if (!Directory.Exists("localffmpeg"))
         {
-            Directory.CreateDirectory("ffmpeg");
+            Directory.CreateDirectory("localffmpeg");
         }
     }
 
@@ -572,4 +475,6 @@ public class LocalFfmpegInstallationManager : EditorWindow
             Environment.SetEnvironmentVariable("PATH", environmentPath, EnvironmentVariableTarget.User);
         }
     }
+#endif
+    #endregion
 }

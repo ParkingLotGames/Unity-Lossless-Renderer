@@ -1,17 +1,20 @@
 {
   "name": "com.parkinglotgames.losslessrenderer",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "displayName": "Lossless Renderer",
   "description": "EXPERIMENTAL. An editor and runtime tool to render lossless video. It outputs frame captures and uses ffmpeg to splice them to a video. It can also download and install ffmpeg globally or locally.",
-  "unity": "2019.1",
-  "unityRelease": "0b5",
+  "unity": "2017.1",
+  "unityRelease": "0b3",
   "documentationUrl": "https://github.com/ParkingLotGames/Unity-Lossless-Renderer",
   "changelogUrl": "https://github.com/ParkingLotGames/Unity-Lossless-Renderer/releases",
   "licensesUrl": "https://github.com/ParkingLotGames/Unity-Lossless-Renderer/blob/main/LICENSE",
   "keywords": [
-    "editor-tools",
+    "Editor Tools",
     "ffmpeg",
-    "video-recording"
+    "Video recording",
+    "Lossless recording",
+    "Screen capture",
+    "Super resolution"
   ],
   "dependencies": {},
   "author": {

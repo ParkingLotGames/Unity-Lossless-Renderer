@@ -71,7 +71,11 @@ public class RuntimeScreenRecorder : MonoBehaviour
             elapsed += Time.deltaTime;
             if (elapsed >= frameTime)
             {
+#if UNITY_2017_4_OR_NEWER
                 ScreenCapture.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#else
+                Application.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#endif
                 currentFrame += 1;
                 elapsed = 0;
             }
