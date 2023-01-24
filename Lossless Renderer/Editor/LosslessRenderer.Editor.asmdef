@@ -1,7 +1,10 @@
 {
-    "name": "LosslessRenderer",
+    "name": "LosslessRenderer.Editor",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "GUID:478a2357cc57436488a56e564b08d223",
+        "GUID:c01966b1d4820b6409cdebd0b94b85b4"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -16,7 +16,9 @@
     "Screen capture",
     "Super resolution"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "com.unity.editorcoroutines": "1.0.0"
+  },
   "author": {
     "name": "Parking Lot Games",
     "email": "parkinglotstudiogames@gmail.com",

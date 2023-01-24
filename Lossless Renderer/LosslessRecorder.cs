@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using System.IO.Compression;
 using System.Net;
-using Debug = UnityEngine.Debug;
+using System.Collections;
 
 public enum FfmpegInstallToUse
 {
@@ -19,299 +19,9 @@ public enum RecordingState
     Stopping
 }
 
-public class EditorRecorder : EditorWindow
+public class LosslessRecorder
 {
-    #region Variables
-    #region Private Variables
-    LosslessRecorderSettings settings;
-    RecordingState recordingState;
-
-    int currentFrame = 0;
-    float frameTime;
-    float elapsed;
-#if UNITY_2018_2_OR_NEWER
-    bool ffmpegInstalledByTool;
-#endif
-    Process ffmpegProcess;
-    #endregion
-
-    #region Public Variables
-    public string currentOutputPath;
-    public string captureFilePath;
-    #endregion
-    #endregion
-
-    #region Unity Callbacks
-    [MenuItem("Tools/Lossless Recorder")]
-    static void ShowWindow()
-    {
-        var window = GetWindow<EditorRecorder>();
-        window.titleContent = new GUIContent("Lossless Recorder");
-        window.Show();
-    }
-
-    void OnEnable()
-    {
-        if (File.Exists("Assets/LosslessRecorderSettings.asset"))
-        {
-            settings = AssetDatabase.LoadAssetAtPath<LosslessRecorderSettings>("Assets/LosslessRecorderSettings.asset");
-            RecheckInstalls();
-        }
-    }
-
-    void OnGUI()
-    {
-        if (settings)
-            if (GUILayout.Button("Recheck Installs", GUILayout.Width(112)))
-            {
-                RecheckInstalls();
-            }
-        settings = (LosslessRecorderSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(LosslessRecorderSettings), false);
-        if (!settings)
-        {
-            EditorGUILayout.HelpBox("No Settings asset found. Please select or create one.", MessageType.Warning);
-            if (GUILayout.Button("Create Asset"))
-            {
-                CreateSettingsAsset();
-            }
-            return;
-        }
-        else
-        {
-            settings.ffmpegInstallToUse = (FfmpegInstallToUse)EditorGUILayout.EnumPopup("Select ffmpeg installation", settings.ffmpegInstallToUse);
-            // if we're using global
-            if (settings.ffmpegInstallToUse == FfmpegInstallToUse.global)
-            {
-                //and we find an install
-                if (settings.globalFfmpegInstallationFound)
-                    ShowRegularUI(settings.ffmpegInstallToUse);
-                //and we don't find a global install
-                else
-                    ShowInstallNotFoundArea(settings.ffmpegInstallToUse);
-            }
-            // if we're using local
-            else
-            {
-                //and we find an install
-                if (settings.localFfmpegInstallationFound)
-                    ShowRegularUI(settings.ffmpegInstallToUse);
-                //and we don't find a local install
-                else
-                    ShowInstallNotFoundArea(settings.ffmpegInstallToUse);
-            }
-        }
-    }
-
-    void Update()
-    {
-        if (recordingState == RecordingState.Recording)
-        {
-            elapsed += Time.deltaTime;
-            if (elapsed >= frameTime)
-            {
-#if UNITY_2017_4_OR_NEWER
-                ScreenCapture.CaptureScreenshot(captureFilePath + currentFrame + ".png");
-#else
-                Application.CaptureScreenshot(captureFilePath + currentFrame + ".png");
-#endif
-                currentFrame += 1;
-                elapsed = 0;
-            }
-        }
-    }
-    #endregion
-
-    #region Private Methods
-    void CreateSettingsAsset()
-    {
-        settings = CreateInstance<LosslessRecorderSettings>();
-        AssetDatabase.CreateAsset(settings, "Assets/LosslessRecorderSettings.asset");
-        AssetDatabase.SaveAssets();
-    }
-
-    void RecheckInstalls()
-    {
-        settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
-        settings.localFfmpegInstallationFound = FfmpegInstallationManager.IsLocalFfmpegInstalled();
-    }
-
-    void ShowSettingsArea()
-    {
-        settings.outputFileName = EditorGUILayout.TextField("Image Sequence File Name", settings.outputFileName);
-        settings.outputVideoName = EditorGUILayout.TextField("Output Video Name", settings.outputVideoName);
-        EditorGUILayout.BeginHorizontal();
-        settings.outputPath = EditorGUILayout.TextField("Output Path", settings.outputPath);
-        if (GUILayout.Button("...", GUILayout.Width(30)))
-        {
-            settings.outputPath = EditorUtility.OpenFolderPanel("Select Output Folder", "", "");
-        }
-        EditorGUILayout.EndHorizontal();
-        settings.frameRate = EditorGUILayout.IntField("Frame Rate", settings.frameRate);
-        frameTime = (float)1 / settings.frameRate;
-    }
-
-    void ShowStartStopRecordingControls()
-    {
-        switch (recordingState)
-        {
-            case RecordingState.Stopped:
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Play and Record"))
-                {
-                    TogglePlayMode();
-                    StartRecording();
-                }
-                if (GUILayout.Button("Start Recording"))
-                {
-                    StartRecording();
-                }
-                if (GUILayout.Button("Splice Image Sequence"))
-                {
-                    SpliceRecording(@"localffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe");
-                }
-                EditorGUILayout.EndHorizontal();
-
-                break;
-            case RecordingState.Recording:
-                if (Application.isPlaying)
-                {
-                    EditorGUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Stop Recording"))
-                    {
-                        recordingState = RecordingState.Stopping;
-                        StopRecording();
-                    }
-                    if (GUILayout.Button("Stop Playing"))
-                    {
-                        recordingState = RecordingState.Stopping;
-                        TogglePlayMode();
-                        StopRecording();
-                    }
-                    EditorGUILayout.EndHorizontal();
-                }
-                else
-                {
-                    if (GUILayout.Button("Stop Recording"))
-                    {
-                        recordingState = RecordingState.Stopping;
-                        StopRecording();
-                    }
-                }
-
-                break;
-            case RecordingState.Stopping:
-                EditorGUI.BeginDisabledGroup(recordingState == RecordingState.Stopping);
-                if (GUILayout.Button("Stopping...")) { }
-                EditorGUI.EndDisabledGroup();
-                break;
-        }
-    }
-
-    private static void TogglePlayMode()
-    {
-#if UNITY_2019_1_OR_NEWER
-                                EditorApplication.EnterPlaymode();
-#else
-        EditorApplication.ExecuteMenuItem("Edit/Play");
-#endif
-    }
-
-    void ShowRegularUI(FfmpegInstallToUse selectedInstall)
-    {
-        if (selectedInstall == FfmpegInstallToUse.global)
-        {
-            if (settings.localFfmpegInstallationFound)
-                ShowInstallFoundInfoBox(selectedInstall);
-        }
-        else
-        {
-            if (settings.globalFfmpegInstallationFound)
-                ShowInstallFoundInfoBox(selectedInstall);
-        }
-#if UNITY_2018_2_OR_NEWER
-        if (ffmpegInstalledByTool)
-            ShowInstallFirstTimeInfoBox(settings.ffmpegInstallToUse);
-#endif
-        ShowSettingsArea();
-        ShowStartStopRecordingControls();
-    }
-
-    void ShowInstallFirstTimeInfoBox(FfmpegInstallToUse selectedInstall)
-    {
-        string installTypeString;
-        if (selectedInstall == FfmpegInstallToUse.global)
-            installTypeString = "global";
-        else
-            installTypeString = "local";
-        EditorGUILayout.HelpBox(installTypeString + " ffmpeg installation created at 'Project/ffmpeg/'.", MessageType.Info);
-    }
-
-    void ShowInstallFoundInfoBox(FfmpegInstallToUse selectedInstall)
-    {
-        string oppositeKeyword;
-        if (selectedInstall == FfmpegInstallToUse.global)
-            oppositeKeyword = "local";
-        else
-            oppositeKeyword = "global";
-        EditorGUILayout.HelpBox("A " + oppositeKeyword + " ffmpeg installation was found, consider using it instead to save some disk space.", MessageType.Info);
-    }
-
-    void ShowInstallMissingMessage(FfmpegInstallToUse selectedInstall)
-    {
-        string installTypeString;
-        if (selectedInstall == FfmpegInstallToUse.global)
-            installTypeString = "global";
-        else
-            installTypeString = "local";
-        EditorGUILayout.HelpBox("No " + installTypeString + " ffmpeg installation found, please download and install ffmpeg.", MessageType.Error);
-    }
-
-    void ShowInstallNotFoundArea(FfmpegInstallToUse selectedInstall)
-    {
-        //show if we find an opposite installation
-        if (selectedInstall == FfmpegInstallToUse.global)
-        {
-            if (settings.localFfmpegInstallationFound)
-                ShowInstallFoundInfoBox(selectedInstall);
-        }
-        else
-        {
-            if (settings.globalFfmpegInstallationFound)
-                ShowInstallFoundInfoBox(selectedInstall);
-        }
-        ShowInstallMissingMessage(selectedInstall);
-#if UNITY_2018_2_OR_NEWER
-        ShowDownloadFfmpegButton(selectedInstall);
-#endif
-    }
-
-#if UNITY_2018_2_OR_NEWER
-    void ShowDownloadFfmpegButton(FfmpegInstallToUse selectedInstall)
-    {
-        if (GUILayout.Button("Download and install ffmpeg"))
-        {
-#if UNITY_EDITOR_WIN
-            FfmpegInstallationManager.DownloadFfmpeg();
-            if (selectedInstall == FfmpegInstallToUse.global)
-            {
-                FfmpegInstallationManager.InstallFfmpeg("C:/", false);
-                settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
-            }
-            else
-            {
-                FfmpegInstallationManager.InstallFfmpeg("localffmpeg", false);
-                settings.localFfmpegInstallationFound = FfmpegInstallationManager.IsLocalFfmpegInstalled();
-            }
-#elif UNITY_EDITOR_LINUX || UNITY_EDITOR_MACOS
-            FfmpegInstallationManager.OpenTerminalWithCommand(FfmpegInstallationManager.CheckPackageManager());
-            settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
-#endif
-            ffmpegInstalledByTool = true;
-        }
-    }
-#endif
-
-    void StartRecording()
+    public static void StartRecording(string currentOutputPath, LosslessRecorderSettings settings, string captureFilePath, int currentFrame, RecordingState recordingState)
     {
         currentOutputPath = Path.Combine(settings.outputPath, DateTime.Now.ToString("MM-dd-yyyy@HH-mm-ss"));
         if (!Directory.Exists(currentOutputPath))
@@ -321,17 +31,7 @@ public class EditorRecorder : EditorWindow
         recordingState = RecordingState.Recording;
     }
 
-    void SpliceRecording(string path)
-    {
-        // Start the ffmpeg process
-        ffmpegProcess = new Process();
-        ffmpegProcess.StartInfo.FileName = path;
-        ffmpegProcess.StartInfo.Arguments = "-y -r " + settings.frameRate + " -i " + captureFilePath + "%d.png" + " -vcodec libx264 -crf 0 " + Path.Combine(currentOutputPath, settings.outputVideoName);
-        ffmpegProcess.Start();
-        ffmpegProcess.WaitForExit();
-    }
-
-    void StopRecording()
+    public static void StopRecording(Process ffmpegProcess, RecordingState recordingState, int currentFrame)
     {
         // Close the ffmpeg process and set the recording state to stopped
         if (ffmpegProcess != null)
@@ -342,34 +42,80 @@ public class EditorRecorder : EditorWindow
         recordingState = RecordingState.Stopped;
         currentFrame = 0;
     }
-    #endregion
+
+    public static void SpliceRecording(Process ffmpegProcess, LosslessRecorderSettings settings, string currentOutputPath)
+    {
+        // Start the ffmpeg process
+        ffmpegProcess = new Process();
+#if UNITY_EDITOR
+        if (settings.ffmpegInstallToUse == FfmpegInstallToUse.global)
+            ffmpegProcess.StartInfo.FileName = "ffmpeg";
+        else
+            ffmpegProcess.StartInfo.FileName = @"localffmpeg\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe";
+#elif UNITY_STANDALONE_WIN
+            ffmpegProcess.StartInfo.FileName = Path.Combine(Application.dataPath,@"ffmpeg\\bin\\ffmpeg.exe");
+#endif
+        ffmpegProcess.StartInfo.Arguments = "-y -r " + settings.frameRate + " -i " + Path.Combine(currentOutputPath, settings.outputFileName + "%d.png") + " -vcodec libx264 -crf 0 " + Path.Combine(currentOutputPath, settings.outputVideoName);
+        ffmpegProcess.Start();
+        ffmpegProcess.WaitForExit();
+    }
+
+    public static void CreateSettingsAsset(LosslessRecorderSettings settings)
+    {
+        settings = ScriptableObject.CreateInstance<LosslessRecorderSettings>();
+        AssetDatabase.CreateAsset(settings, "Assets/LosslessRecorderSettings.asset");
+        AssetDatabase.SaveAssets();
+    }
+
+    public static void RecheckInstalls(LosslessRecorderSettings settings)
+    {
+        settings.globalFfmpegInstallationFound = FfmpegInstallationManager.IsGlobalFfmpegInstalled();
+        settings.localFfmpegInstallationFound = FfmpegInstallationManager.IsLocalFfmpegInstalled();
+    }
+
+    public static void TogglePlayMode()
+    {
+#if UNITY_2019_1_OR_NEWER
+        EditorApplication.EnterPlaymode();
+#else
+        EditorApplication.ExecuteMenuItem("Edit/Play");
+#endif
+    }
+
+    public static void InitializeRecorder(float frameTime, LosslessRecorderSettings settings, string currentOutputPath, string captureFilePath, RecordingState recordingState, bool startRecording)
+    {
+        frameTime = (float)1 / settings.frameRate;
+
+#if UNITY_EDITOR
+        currentOutputPath = Path.Combine(settings.outputPath, System.DateTime.Now.ToString("MM-dd-yyyy@HH-mm-ss"));
+#else
+        currentOutputPath = Path.Combine(Application.persistentDataPath, System.DateTime.Now.ToString("MM-dd-yyyy@HH-mm-ss"));
+#endif
+        if (!Directory.Exists(currentOutputPath))
+            Directory.CreateDirectory(currentOutputPath);
+        captureFilePath = Path.Combine(currentOutputPath, settings.outputFileName);
+        if (startRecording)
+            recordingState = RecordingState.Recording;
+        else
+            recordingState = RecordingState.Stopped;
+    }
+
+    public static IEnumerator CaptureScreenshot(string captureFilePath, int currentFrame, float elapsed)
+    {
+        yield return new WaitForEndOfFrame();
+
+#if UNITY_2017_4_OR_NEWER
+        ScreenCapture.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#else
+        Application.CaptureScreenshot(captureFilePath + currentFrame + ".png");
+#endif
+        currentFrame += 1;
+        elapsed = 0;
+    }
 }
 
-public class FfmpegInstallationManager : EditorWindow
+public class FfmpegInstallationManager
 {
-    #region Unity Callbacks
-    [MenuItem("Tools/FFMPEG Install Check")]
-    public static void ShowWindow()
-    {
-        var window = GetWindow<FfmpegInstallationManager>();
-        window.titleContent = new GUIContent("FFMPEG Install Check");
-    }
-
-    void OnGUI()
-    {
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Check global install"))
-        {
-            Debug.Log(IsGlobalFfmpegInstalled());
-        }
-        if (GUILayout.Button("Check local install"))
-        {
-            Debug.Log(IsLocalFfmpegInstalled());
-        }
-        GUILayout.EndHorizontal();
-    }
-    #endregion
-
     #region Static Methods
     public static bool IsGlobalFfmpegInstalled()
     {
@@ -388,6 +134,7 @@ public class FfmpegInstallationManager : EditorWindow
         process.WaitForExit();
         return process.ExitCode == 0;
     }
+
     public static bool IsLocalFfmpegInstalled()
     {
         return File.Exists("localffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe");
@@ -445,7 +192,6 @@ public class FfmpegInstallationManager : EditorWindow
     } 
 #endif
 
-
 #if UNITY_2018_2_OR_NEWER
     public static void DownloadFfmpeg()
     {
@@ -459,12 +205,17 @@ public class FfmpegInstallationManager : EditorWindow
         }
     }
 
-    public static void InstallFfmpeg(string path, bool addToPath)
+    public static void InstallFfmpeg(FfmpegInstallToUse ffmpegInstallToUse , LosslessRecorderSettings settings)
     {
-        ZipFile.ExtractToDirectory("ffmpeg-latest.zip", path);
-        if (addToPath)
+
+        string installationPath = ffmpegInstallToUse == FfmpegInstallToUse.global ? "C:/" : "localffmpeg";
+        ZipFile.ExtractToDirectory("ffmpeg-latest.zip", installationPath);
+        if (ffmpegInstallToUse == FfmpegInstallToUse.global)
             AddFfmpegToPath();
+        settings.localFfmpegInstallationFound = IsLocalFfmpegInstalled();
+        settings.globalFfmpegInstallationFound = IsGlobalFfmpegInstalled();
     }
+
     public static void AddFfmpegToPath()
     {
         var environmentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User);
@@ -477,4 +228,5 @@ public class FfmpegInstallationManager : EditorWindow
     }
 #endif
     #endregion
+
 }
