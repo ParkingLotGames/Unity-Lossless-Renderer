@@ -22,4 +22,5 @@ Download support is not available on 2018.1 or lower versions and no testing was
 #### Check how to fix the issue where EditorUpdate is so fast that the screenshots have skipped numbers in between them, breaking ffmpeg's ability to splice them.
 #### Port over missing features to MonoBehaviour version from the Editor Window.
 #### In both Editor Window and MB, show controls for all options saved in the Settings scriptable object.
+#### Add option to define how many frames to capture in advance
 #### Create documentation, summaries, comments and examples.
