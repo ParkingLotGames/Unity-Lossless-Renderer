@@ -12,8 +12,8 @@
 > Local path for ffmpeg is Project/localffmpeg/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe
 
 ## Limitations
-Unity 2018.2-2018.4 versions need to add [this](https://gist.github.com/ParkingLotGames/0f8b4bdfa298266cba093c69241e9b43) as a [msc(.2) or csc.rsp(.3+) file](https://forum.unity.com/threads/c-compression-zip-missing.577492/#post-3849472) to your Assets folder in order to be able to unzip the downloaded ffmpeg file.
-Download support is not available on 2018.1 or lower versions and no testing was made on versions prior to 5.6.0f3
+- Unity 2018.2-2018.4 versions need to add [this](https://gist.github.com/ParkingLotGames/0f8b4bdfa298266cba093c69241e9b43) as a [msc(.2) or csc.rsp(.3+) file](https://forum.unity.com/threads/c-compression-zip-missing.577492/#post-3849472) to your Assets folder in order to be able to unzip the downloaded ffmpeg file.
+- Download support is not available on 2018.1 or lower versions and no testing was made on versions prior to 5.6.0f3
 
 ## //TODO:
 - Test Linux support.
